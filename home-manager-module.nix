@@ -4,6 +4,13 @@ with lib;
 
 let
   cfg = config.services.illuminanced;
+  
+  # Fallback to building the package if not available in pkgs (e.g., overlay not applied)
+  defaultPackage = 
+    if pkgs ? illuminanced 
+    then pkgs.illuminanced
+    else pkgs.callPackage (import ./illuminanced) {};
+  
   illuminanced = cfg.package;
 
   configFormat = pkgs.formats.toml {};
@@ -16,9 +23,14 @@ in
 
     package = mkOption {
       type = types.package;
-      default = pkgs.illuminanced or (throw "illuminanced package not found in pkgs");
+      default = defaultPackage;
       defaultText = literalExpression "pkgs.illuminanced";
-      description = "The illuminanced package to use.";
+      description = ''
+        The illuminanced package to use.
+        
+        Defaults to pkgs.illuminanced if the overlay is applied,
+        otherwise builds the package from this flake.
+      '';
     };
 
     settings = mkOption {

@@ -17,6 +17,10 @@
       );
     in
     {
+      overlays.default = final: prev: {
+        illuminanced = final.callPackage ./illuminanced {};
+      };
+
       legacyPackages = forAllSystems (system:
         (import ./default.nix) pkgsFor.${system}
       );

@@ -5,12 +5,17 @@
     illuminanced-nix-flake.homeManagerModules.default
   ];
 
+  # Optional: Apply the overlay to make pkgs.illuminanced available
+  # nixpkgs.overlays = [ illuminanced-nix-flake.overlays.default ];
+
   # Add illuminanced to your packages
   home.packages = [
     illuminanced-nix-flake.packages.${pkgs.system}.illuminanced
   ];
 
   # Enable and configure illuminanced service
+  # Note: The package will be automatically provided from the flake,
+  # whether or not you apply the overlay above
   services.illuminanced = {
     enable = true;
 

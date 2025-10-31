@@ -34,13 +34,17 @@ In your `flake.nix`:
 ### 2. Configure in your home.nix
 
 ```nix
-{ config, pkgs, ... }:
+{ config, pkgs, illuminanced-nix-flake, ... }:
 
 {
+  # Option A: Apply the overlay (makes pkgs.illuminanced available)
+  nixpkgs.overlays = [ illuminanced-nix-flake.overlays.default ];
+  
   # Add the package
   home.packages = [ pkgs.illuminanced ];
 
   # Enable and configure the service
+  # Note: Package is automatically provided even without the overlay
   services.illuminanced = {
     enable = true;
     
@@ -50,6 +54,28 @@ In your `flake.nix`:
         backlight_file = "/sys/class/backlight/amdgpu_bl0/brightness";
         max_backlight_file = "/sys/class/backlight/amdgpu_bl0/max_brightness";
       };
+    };
+  };
+}
+```
+
+**Alternative without overlay:**
+
+```nix
+{ config, pkgs, illuminanced-nix-flake, ... }:
+
+{
+  # Add the package directly from the flake
+  home.packages = [ 
+    illuminanced-nix-flake.packages.${pkgs.system}.illuminanced 
+  ];
+
+  # Enable and configure the service
+  # The module automatically uses the flake's package as default
+  services.illuminanced = {
+    enable = true;
+    settings = {
+      # ... your configuration
     };
   };
 }
@@ -101,6 +127,52 @@ cat /sys/class/backlight/amdgpu_bl0/brightness
 cat /sys/class/backlight/amdgpu_bl0/max_brightness
 ```
 
+## Using the Overlay
+
+This flake provides an overlay that adds `pkgs.illuminanced` to nixpkgs. The overlay is **optional** - the home-manager module works without it by automatically building the package from the flake.
+
+### Why use the overlay?
+
+- Makes `pkgs.illuminanced` available throughout your configuration
+- Useful if you reference the package in multiple places
+- Provides a cleaner syntax in some cases
+
+### How to apply the overlay
+
+In your home-manager configuration:
+
+```nix
+{ config, pkgs, illuminanced-nix-flake, ... }:
+
+{
+  nixpkgs.overlays = [ illuminanced-nix-flake.overlays.default ];
+  
+  # Now you can use pkgs.illuminanced anywhere
+  home.packages = [ pkgs.illuminanced ];
+  
+  # The service will also use pkgs.illuminanced
+  services.illuminanced.enable = true;
+}
+```
+
+### Without the overlay
+
+The module works perfectly fine without applying the overlay:
+
+```nix
+{ config, pkgs, illuminanced-nix-flake, ... }:
+
+{
+  # The module automatically builds and uses the package from the flake
+  services.illuminanced.enable = true;
+  
+  # You can still add it to packages using the flake reference
+  home.packages = [ 
+    illuminanced-nix-flake.packages.${pkgs.system}.illuminanced 
+  ];
+}
+```
+
 ## Configuration Options
 
 ### services.illuminanced.enable
@@ -110,7 +182,7 @@ cat /sys/class/backlight/amdgpu_bl0/max_brightness
 
 ### services.illuminanced.package
 - **Type:** package
-- **Default:** `pkgs.illuminanced`
+- **Default:** `pkgs.illuminanced` (from overlay) or auto-built from flake
 - **Description:** The illuminanced package to use
 
 ### services.illuminanced.settings

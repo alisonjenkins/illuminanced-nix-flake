@@ -41,12 +41,16 @@ Import the home-manager module and enable the service:
     illuminanced-nix-flake.homeManagerModules.default
   ];
 
+  # Optional: Apply overlay to make pkgs.illuminanced available system-wide
+  nixpkgs.overlays = [ illuminanced-nix-flake.overlays.default ];
+
   # Add the illuminanced package to your environment
   home.packages = [
     illuminanced-nix-flake.packages.${pkgs.system}.illuminanced
   ];
 
   # Enable and configure the service
+  # The package is automatically provided - overlay is optional
   services.illuminanced = {
     enable = true;
 
@@ -71,6 +75,8 @@ Import the home-manager module and enable the service:
   };
 }
 ```
+
+**Note:** The home-manager module works out of the box without applying the overlay. The overlay is optional and useful if you want `pkgs.illuminanced` available elsewhere in your configuration.
 
 ### Finding Your Device Paths
 
