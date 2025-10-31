@@ -5,11 +5,34 @@ with lib;
 let
   cfg = config.services.illuminanced;
   
-  # Fallback to building the package if not available in pkgs (e.g., overlay not applied)
+  # Build the package inline if not available in pkgs
   defaultPackage = 
     if pkgs ? illuminanced 
     then pkgs.illuminanced
-    else pkgs.callPackage (import ./illuminanced) {};
+    else (
+      let
+        src = pkgs.fetchFromGitHub {
+          owner = "mikhail-m1";
+          repo = "illuminanced";
+          rev = "4e9d9c67797e2e9721641e165fa37867675a04fd";
+          hash = "sha256-ZEVma0uj9rsWB+vfUL7w3dHxI/ppBCG23TirGE+RREk=";
+        };
+      in
+      pkgs.rustPlatform.buildRustPackage {
+        pname = "illuminanced";
+        version = "0.1.2";
+        doCheck = false;
+        cargoHash = "sha256-kPWoQ6rE4wBjmqQLNPY4UWJt/AOgr+eVKY0ZK7B4K1A=";
+        inherit src;
+        
+        meta = {
+          description = "Ambient Light Sensor Daemon for Linux";
+          homepage = "https://github.com/mikhail-m1/illuminanced";
+          license = lib.licenses.gpl3;
+          platforms = lib.platforms.linux;
+        };
+      }
+    );
   
   illuminanced = cfg.package;
 
