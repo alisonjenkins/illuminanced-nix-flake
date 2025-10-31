@@ -5,9 +5,65 @@ A Nix flake for [illuminanced](https://github.com/mikhail-m1/illuminanced) - an 
 ## Features
 
 - Builds illuminanced from source using Nix
-- Provides a home-manager module for easy configuration
+- Provides a home-manager module for user service configuration
+- Provides a NixOS module for system-level udev rules
+- Automatic backlight permission management via udev
 - Systemd user service integration
 - Fully configurable through Nix options
+
+## Quick Start
+
+### 1. NixOS System Configuration (Required for permissions)
+
+Add the NixOS module to grant backlight access to users:
+
+```nix
+# configuration.nix
+{ config, pkgs, illuminanced-nix-flake, ... }:
+
+{
+  imports = [
+    illuminanced-nix-flake.nixosModules.default
+  ];
+
+  # Enable udev rules for backlight access
+  services.illuminanced = {
+    enable = true;
+    settings.general = {
+      backlight_file = "/sys/class/backlight/amdgpu_bl0/brightness";
+      max_backlight_file = "/sys/class/backlight/amdgpu_bl0/max_brightness";
+    };
+  };
+}
+```
+
+This sets up udev rules with the `uaccess` tag, allowing the active session user to control backlight brightness without root permissions.
+
+### 2. Home Manager Configuration (User Service)
+
+Configure the illuminanced service in your home-manager:
+
+```nix
+# home.nix
+{ config, pkgs, illuminanced-nix-flake, ... }:
+
+{
+  imports = [
+    illuminanced-nix-flake.homeManagerModules.default
+  ];
+
+  services.illuminanced = {
+    enable = true;
+    settings = {
+      general = {
+        illuminance_file = "/sys/bus/iio/devices/iio:device0/in_illuminance_raw";
+        backlight_file = "/sys/class/backlight/amdgpu_bl0/brightness";
+        max_backlight_file = "/sys/class/backlight/amdgpu_bl0/max_brightness";
+      };
+    };
+  };
+}
+```
 
 ## Usage
 
@@ -105,12 +161,77 @@ Before using illuminanced, you need to find the correct device paths for your sy
 
 See [example-home-config.nix](./example-home-config.nix) for a complete example.
 
+## Backlight Permissions
+
+### Why You Need Udev Rules
+
+By default, backlight control requires root permissions. The NixOS module solves this by creating udev rules that grant access to the active session user.
+
+### How It Works
+
+The NixOS module:
+1. Detects your backlight device from `settings.general.backlight_file`
+2. Generates udev rules with the `uaccess` tag
+3. Adds them to `services.udev.packages`
+
+The `uaccess` tag works with systemd-logind to automatically grant permissions to the user with an active session.
+
+### Supported Devices
+
+The udev rules cover:
+- Intel backlight: `intel_backlight`
+- AMD backlight: `amdgpu_bl0`, `amdgpu_bl1`, etc.
+- NVIDIA backlight: `nvidia_*`
+- ACPI video: `acpi_video*`
+- Your specific device (auto-detected from config)
+
+### Manual Setup (Without NixOS Module)
+
+If you can't use the NixOS module, you can manually create udev rules:
+
+```nix
+# configuration.nix
+services.udev.extraRules = ''
+  ACTION=="add", SUBSYSTEM=="backlight", TAG+="uaccess"
+  SUBSYSTEM=="backlight", KERNEL=="amdgpu_bl0", TAG+="uaccess"
+'';
+```
+
+Or add your user to the `video` group:
+```nix
+users.users.youruser.extraGroups = [ "video" ];
+```
+
+Then manually set group permissions (not recommended, use udev instead):
+```bash
+sudo chgrp video /sys/class/backlight/*/brightness
+sudo chmod g+w /sys/class/backlight/*/brightness
+```
+
 ## Configuration Options
+
+### NixOS Module Options
+
+#### `services.illuminanced.enable`
+- Type: boolean
+- Default: `false`
+- Description: Enable udev rules for illuminanced (system-level)
+
+#### `services.illuminanced.enableUdevRules`
+- Type: boolean
+- Default: `config.services.illuminanced.enable`
+- Description: Generate and install udev rules for backlight access
+
+#### `services.illuminanced.settings.general.backlight_file`
+- Type: string
+- Description: Path to backlight brightness file (used to generate udev rules)
+
+### Home Manager Module Options
 
 ### `services.illuminanced.enable`
 - Type: boolean
 - Default: `false`
-- Description: Enable the illuminanced service
+- Description: Enable the illuminanced service (user-level)
 
 ### `services.illuminanced.package`
 - Type: package

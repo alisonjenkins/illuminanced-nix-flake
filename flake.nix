@@ -33,5 +33,10 @@
         illuminanced = import ./home-manager-module.nix;
         default = self.homeManagerModules.illuminanced;
       };
+
+      nixosModules = {
+        illuminanced = import ./nixos-module.nix;
+        default = self.nixosModules.illuminanced;
+      };
     };
 }
